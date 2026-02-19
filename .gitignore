@@ -1,0 +1,35 @@
+```
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (ne pas commit les photos et l'index)
+data/faces/*
+data/index/*
+
+# Fichiers temporaires
+*.jpg
+*.png
+*.jpeg
+test_*.py
+debug_*.py
+
+# OS
+.DS_Store
+Thumbs.db
+```

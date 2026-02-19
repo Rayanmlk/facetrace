@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FaceTrace — Real-time Face Recognition</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      padding: 18px 32px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 2px; color: #fff; }
+    header h1 span { color: #6366f1; }
+
+    #stats {
+      font-size: 0.78rem;
+      color: #888;
+      display: flex;
+      gap: 20px;
+    }
+    #stats span { color: #a5b4fc; font-weight: 600; }
+
+    .main {
+      display: flex;
+      gap: 24px;
+      padding: 32px;
+      width: 100%;
+      max-width: 1200px;
+      flex: 1;
+    }
+
+    .video-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #000;
+    }
+
+    video   { display: none; }
+    canvas  { display: block; width: 100%; border-radius: 12px; }
+
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #btnStart {
+      background: #6366f1;
+      color: white;
+    }
+    #btnStart:hover { background: #4f46e5; }
+
+    #btnStop {
+      background: rgba(255,255,255,0.08);
+      color: #ccc;
+    }
+    #btnStop:hover { background: rgba(255,255,255,0.15); }
+
+    .sidebar {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .card h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin-bottom: 12px;
+    }
+
+    #resultsList { display: flex; flex-direction: column; gap: 10px; }
+
+    .result-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 12px;
+      border-left: 3px solid #6366f1;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-item.unknown { border-left-color: #f59e0b; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+
+    .result-name { font-weight: 700; font-size: 1rem; color: #fff; }
+    .result-score {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 4px;
+    }
+    .result-score span { color: #a5b4fc; }
+
+    .confidence-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #a5b4fc);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .top3 { margin-top: 8px; }
+    .top3-item {
+      font-size: 0.75rem;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+    .top3-item:first-child { color: #999; }
+
+    #status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #666;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #444;
+      transition: background 0.3s;
+    }
+    .dot.active { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+    .ethics-notice {
+      font-size: 0.7rem;
+      color: #555;
+      line-height: 1.5;
+      text-align: center;
+      padding: 0 32px 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>FACE<span>TRACE</span></h1>
+  <div id="stats">
+    <div>Embeddings: <span id="statEmb">—</span></div>
+    <div>Identities: <span id="statIds">—</span></div>
+    <div>Threshold: <span id="statThr">—</span></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Panneau vidéo -->
+  <div class="video-panel">
+    <div class="canvas-wrapper">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="controls">
+      <button id="btnStart">▶ Start Recognition</button>
+      <button id="btnStop">■ Stop</button>
+    </div>
+    <div id="status"><div class="dot" id="dot"></div><span id="statusText">Ready</span></div>
+  </div>
+
+  <!-- Sidebar résultats -->
+  <div class="sidebar">
+    <div class="card">
+      <h3>Detected Faces</h3>
+      <div id="resultsList"><p style="color:#555;font-size:0.85rem">Start the camera to begin.</p></div>
+    </div>
+    <div class="card">
+      <h3>About</h3>
+      <p style="font-size:0.78rem;color:#666;line-height:1.6">
+        Academic demonstration of open-world face recognition
+        using InsightFace (ArcFace) + FAISS vector search.<br><br>
+        <strong style="color:#f59e0b">⚠ No data is stored.</strong>
+        Frames are processed in memory only.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<p class="ethics-notice">
+  ⚠️ For academic research only — GDPR Art. 89 exception applies.
+  No biometric data is stored or transmitted beyond this session.
+  This system demonstrates the risks of mass facial recognition technology.
+</p>
+
+<video id="video" style="display:none" autoplay playsinline></video>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────────
+const WS_URL      = `ws://${location.host}/ws`;
+const FRAME_RATE  = 10;  // frames per second envoyés au serveur
+const COLORS      = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4"];
+
+// ─── DOM ─────────────────────────────────────────────────────────
+const video     = document.getElementById("video");
+const canvas    = document.getElementById("canvas");
+const overlay   = document.getElementById("overlay");
+const ctx       = canvas.getContext("2d");
+const octx      = overlay.getContext("2d");
+const btnStart  = document.getElementById("btnStart");
+const btnStop   = document.getElementById("btnStop");
+const dot       = document.getElementById("dot");
+const statusTxt = document.getElementById("statusText");
+const resultsList = document.getElementById("resultsList");
+
+let ws        = null;
+let stream    = null;
+let frameLoop = null;
+let lastFaces = [];
+
+// ─── Stats ───────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch("/api/stats");
+    const d = await r.json();
+    document.getElementById("statEmb").textContent = d.embeddings?.toLocaleString() ?? "—";
+    document.getElementById("statIds").textContent = d.identities ?? "—";
+    document.getElementById("statThr").textContent = d.threshold ?? "—";
+  } catch(e) {}
+}
+loadStats();
+
+// ─── Start ───────────────────────────────────────────────────────
+btnStart.addEventListener("click", async () => {
+  setStatus("connecting", "Requesting camera...");
+
+  stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+  video.srcObject = stream;
+  await new Promise(r => video.onloadedmetadata = r);
+
+  canvas.width  = overlay.width  = video.videoWidth;
+  canvas.height = overlay.height = video.videoHeight;
+
+  setStatus("connecting", "Connecting to server...");
+  ws = new WebSocket(WS_URL);
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => {
+    setStatus("active", "Recognizing...");
+    frameLoop = setInterval(sendFrame, 1000 / FRAME_RATE);
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.faces) {
+      lastFaces = data.faces;
+      drawOverlay(data.faces);
+      updateSidebar(data.faces);
+    }
+  };
+
+  ws.onclose = () => stopAll();
+});
+
+// ─── Stop ────────────────────────────────────────────────────────
+btnStop.addEventListener("click", stopAll);
+
+function stopAll() {
+  clearInterval(frameLoop);
+  if (ws) ws.close();
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  setStatus("idle", "Stopped");
+  resultsList.innerHTML = '<p style="color:#555;font-size:0.85rem">Start the camera to begin.</p>';
+}
+
+// ─── Capture & send frame ─────────────────────────────────────────
+function sendFrame() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+  // Dessiner le frame courant sur le canvas principal
+  ctx.drawImage(video, 0, 0);
+
+  // Convertir en JPEG et envoyer via WebSocket (binaire)
+  canvas.toBlob(blob => {
+    blob.arrayBuffer().then(buf => ws.send(buf));
+  }, "image/jpeg", 0.8);
+}
+
+// ─── Overlay bounding boxes ────────────────────────────────────────
+function drawOverlay(faces) {
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+
+  faces.forEach((face, i) => {
+    const [x1, y1, x2, y2] = face.bbox;
+    const color = face.name === "Unknown" ? "#f59e0b" : COLORS[i % COLORS.length];
+    const label = `${face.name} (${(face.confidence * 100).toFixed(0)}%)`;
+
+    // Bounding box
+    octx.strokeStyle = color;
+    octx.lineWidth   = 2;
+    octx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+    // Fond du label
+    octx.font = "bold 14px system-ui";
+    const tw  = octx.measureText(label).width;
+    octx.fillStyle = color;
+    octx.fillRect(x1, y1 - 24, tw + 12, 24);
+
+    // Texte
+    octx.fillStyle = "#fff";
+    octx.fillText(label, x1 + 6, y1 - 6);
+  });
+}
+
+// ─── Sidebar résultats ─────────────────────────────────────────────
+function updateSidebar(faces) {
+  if (!faces.length) {
+    resultsList.innerHTML = '<p style="color:#555;font-size:0.85rem">No face detected.</p>';
+    return;
+  }
+
+  resultsList.innerHTML = faces.map((face, i) => {
+    const color    = face.name === "Unknown" ? "unknown" : "";
+    const pct      = Math.round(face.confidence * 100);
+    const top3Html = (face.top3 || []).slice(1).map(t =>
+      `<div class="top3-item"><span>${t.name}</span><span>${(t.score*100).toFixed(0)}%</span></div>`
+    ).join("");
+
+    return `
+      <div class="result-item ${color}">
+        <div class="result-name">${face.name}</div>
+        <div class="result-score">Confidence: <span>${pct}%</span></div>
+        <div class="confidence-bar">
+          <div class="confidence-fill" style="width:${pct}%"></div>
+        </div>
+        ${top3Html ? `<div class="top3">${top3Html}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+// ─── Utilitaires ──────────────────────────────────────────────────
+function setStatus(state, text) {
+  dot.className = `dot ${state === "active" ? "active" : state === "connecting" ? "connecting" : ""}`;
+  statusTxt.textContent = text;
+}
+</script>
+</body>
+</html>
