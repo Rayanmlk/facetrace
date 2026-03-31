@@ -162,8 +162,6 @@ Webcam → Détection visage → Extraction embedding → FAISS search → Affic
 
 ## 🎓 Contexte académique
 
-Projet réalisé dans le cadre de mon **double diplôme CentraleSupélec - M1 Data & IA**.
-
 **Objectif :** Mettre en pratique les concepts de :
 - Deep learning (réseaux de neurones convolutifs)
 - Metric learning (ArcFace loss)
