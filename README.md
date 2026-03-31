@@ -14,7 +14,7 @@
 - **FAISS** pour la recherche vectorielle ultra-rapide
 - **FastAPI + WebSocket** pour le streaming vidéo temps réel
 
-Le système détecte les visages via webcam et les compare à une base de données locale d'identités pré-enregistrées.
+Le système détecte les visages via webcam et les compare ensuite à une base de données locale d'identités pré-enregistrées.
 
 ---
 
