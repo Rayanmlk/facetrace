@@ -183,10 +183,7 @@ MIT License
 
 ---
 
-## 🙏 Remerciements
 
 - [InsightFace](https://github.com/deepinsight/insightface) pour le modèle ArcFace
 - [FAISS](https://github.com/facebookresearch/faiss) pour la recherche vectorielle
 ```
-
----
